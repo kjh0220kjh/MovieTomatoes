@@ -39,15 +39,15 @@ from tensorflow.keras import metrics
 
 # .txt 파일에서 데이터를 불러오는 method
 def read_data(filename):
-    with open(filename, 'r', encoding='URF-8') as f:
+    with open(filename, 'r', encoding='UTF-8') as f:
         data = [line.split('\t') for line in f.read().splitlines()]
 
 
-        data = []
-        for line in f.read().splitlines():
+        # data = []
+        # for line in f.read().splitlines():
             # line = 9976970 \t	아 더빙.. 진짜 짜증나네요 목소리 \t 0
             # line,split('\t') [9976970, 아 더빙.. 진짜 짜증나네요 목소리, 0]
-            data.append(line,split('\t'))
+            # data.append(line,split('\t'))
 
 
 
@@ -64,7 +64,7 @@ test_data = read_data('./dataset/ratings_test.txt')
 # .. - 상위폴더
 # . - 현재폴더
 
-./datset/ratings_train.txt
+# ./datset/ratings_train.txt
 
 
 # 절대경로와 상대경로
@@ -81,8 +81,68 @@ test_data = read_data('./dataset/ratings_test.txt')
 
 
 
-print(len(train_data))
-print(train_data[0])
+# print(len(train_data))
+# print(train_data[0])
+#
+# print(len(test_data))
+# print(test_data[0])
 
-print(len(test_data))
-print(test_data[0])
+#################
+# PreProcessing #
+#################
+# 데이터를 학습하기에 알맞게 처리해보자. konlpy 라이브러리를 사용해서
+# 형태소 분석 및 품사 태깅을 진행한다. 네이버 영화 데이터는
+# 맞춤법이나 띄어쓰기가 제대로 되어있지 않은 경우가 있기 때문에
+# 정확한 분류를 위해서 konlpy를 사용한다.
+# konlpy는 여러 클래스가 존재하지만 그중 okt(open korean text)를
+# 사용하여 간단한 문장분석을 실행한다.
+okt = Okt()
+# print(okt.pos('이 밤 그날의 반딧불을 당신의 창 가까이 보낼게요'))
+
+# Train, Test 데이터셋에 형태소 분석과 품사 태깅 작업 진행
+# norm: 그래욬ㅋㅋ - 그래요
+# stem: 원형을 찾음 (그래요 - 그렇다)
+def tokenize(doc):
+    # norm은 정규화, stem은 근어로 표시하기를 나타냄
+    return['/'.join(t) for t in okt.pos(doc, norm=True, stem=True)]
+
+if os.path.isfile('train_docs.json'):
+    # 전처리 작업이 완료 된 train_docs.json 파일이 있을 때
+    # train_docs.json과 test_docs.json 파일 로드!, json = dict
+    with open('train_docs.json', 'r', encoding='UTF-8') as f:  # UTF-8 = 한글이므로
+        train_docs = json.load(f)
+    with open('test_docs.json', 'r', encoding='UTF-8') as f:
+        test_docs = json.load(f)
+else:
+    # 전처리 된 파일이 없을 때
+    # 전처리 작업 시작!
+    train_docs = [(tokenize(row[1]), row[2]) for row in train_data]
+    test_docs = [(tokenize(row[1]), row[2]) for row in test_data]
+    # 전처리 완료 - JSON 파일로 저장
+    with open('train_docs.json', 'w', encoding='UTF-8') as make_file:
+        json.dump(train_docs, make_file, ensure_ascii=False, indent='\t')
+    with open('test_docs.json', 'w', encoding='UTF-8') as make_file:
+        json.dump(test_docs, make_file, ensure_ascii=False, indent='\t')
+
+# 전처리 작업 데이터 확인
+pprint(train_docs[0])
+pprint(test_docs[0])
+print(len(train_docs))
+print(len(test_docs))
+
+# 분석한 데이터의 토큰(문자열 분석을 위한 작은 단위)의 개수를 확인
+token = [t for d in train_docs for t in d[0]]
+print(len(tokens))
+
+# 이 데이터를 nltk 라이브러를 통해서 전처리,
+# vocab().most_common을 이용해서 가장 자주 사용되는 단어 빈도수 확인
+text = nltk.Text(tokens, name= 'NSMC')
+
+# 전체 토큰의 개수
+print(len(text.tokens))
+
+# 중복을 제외한 토큰의 개수
+print(len(set(text.tokens)))
+
+# 출현 빈도가 높은 상위 토큰 10개
+pprint(text.vocab().most_common(10))
